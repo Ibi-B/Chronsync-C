@@ -1,6 +1,9 @@
 name: Build Node C
 
 on:
+  push:
+    branches:
+      - chore/chronsync-c-feed-acquisition
   schedule:
     - cron: "0 2 * * *"
   workflow_dispatch:
