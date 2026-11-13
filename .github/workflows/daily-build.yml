@@ -29,11 +29,40 @@ jobs:
 
       - name: Build Node C
         run: |
+          set -euo pipefail
           mkdir -p raw_data public
-          curl -L --fail "https://epgshare01.online/epgshare01/epg_ripper_ZA1.xml.gz" | gunzip > raw_data/share_za.xml
-          curl -L --fail "https://epgshare01.online/epgshare01/epg_ripper_NG1.xml.gz" | gunzip > raw_data/share_ng.xml
-          curl -L --fail "https://epgshare01.online/epgshare01/epg_ripper_AE1.xml.gz" | gunzip > raw_data/share_ae.xml
-          curl -L --fail "https://epg.pw/xmltv/epg_ZA.xml.gz" | gunzip > raw_data/pw_za.xml
+
+          report="raw_data/source_report.tsv"
+          printf 'source\turl\tbytes\tstatus\n' > "$report"
+
+          fetch() {
+            local url="$1"
+            local output="$2"
+            local compressed="${output}.gz"
+
+            curl --fail --location --show-error --silent \
+              "$url" \
+              -o "$compressed"
+
+            test -s "$compressed"
+            gzip -t "$compressed"
+            gunzip -c "$compressed" > "$output"
+            test -s "$output"
+
+            printf '%s\t%s\t%s\tok\n' \
+              "$(basename "$output")" \
+              "$url" \
+              "$(stat -c%s "$output")" \
+              >> "$report"
+          }
+
+          fetch "https://epgshare01.online/epgshare01/epg_ripper_ZA1.xml.gz" "raw_data/share_za.xml"
+          fetch "https://epgshare01.online/epgshare01/epg_ripper_NG1.xml.gz" "raw_data/share_ng.xml"
+          fetch "https://epgshare01.online/epgshare01/epg_ripper_AE1.xml.gz" "raw_data/share_ae.xml"
+          fetch "https://epg.pw/xmltv/epg_ZA.xml.gz" "raw_data/pw_za.xml"
+
+          test "$(find raw_data -maxdepth 1 -name '*.xml' -type f | wc -l)" -eq 4
+
           python scripts/build_db.py public/c.sqlite3
 
       - uses: actions/configure-pages@v5
